@@ -19,7 +19,7 @@ import StartupForm from './models/StartupForm.js';
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 // Serve uploaded files statically
@@ -138,5 +138,5 @@ app.listen(PORT, () => {
   console.log('- GET /api/ai/test');
   console.log('- POST /api/ai/analyze/:startupId');
   console.log('- POST /api/ai/chat');
-  console.log('GROQ_API_KEY loaded:', process.env.GROQ_API_KEY ? 'Yes' : 'No');
+console.log('GEMINI_API_KEY loaded:', process.env.GEMINI_API_KEY ? 'Yes' : 'No');
 });

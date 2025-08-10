@@ -162,7 +162,7 @@ Format the response as JSON with the following structure:
 }
 `;
 
-    const result = await aiService.callGroqAPI(prompt);
+    const result = await aiService.callGeminiAPI(prompt);
     
     if (result.success) {
       try {
@@ -234,7 +234,7 @@ Format as JSON:
 }
 `;
 
-      const aiResult = await aiService.callGroqAPI(aiPrompt);
+      const aiResult = await aiService.callGeminiAPI(aiPrompt);
       
       let aiInsights = {};
       if (aiResult.success) {
@@ -307,7 +307,7 @@ Format as JSON:
 }
 `;
 
-    const result = await aiService.callGroqAPI(prompt);
+    const result = await aiService.callGeminiAPI(prompt);
     
     if (result.success) {
       try {
@@ -390,7 +390,7 @@ Keep your response conversational, actionable, and relevant to investment decisi
 `;
     }
 
-    const result = await aiService.callGroqAPI(prompt);
+    const result = await aiService.callGeminiAPI(prompt);
     
     if (result.success) {
       res.json({

@@ -39,10 +39,10 @@ const Register = () => {
       navigate(formData.role === 'startup' ? '/startup-form' : '/investor-form');
     } catch (err) {
       if (err.response) {
-        if (err.response.status === 409) {
+        if (err.response.status === 400 && err.response.data?.message?.toLowerCase().includes('already')) {
           setError('Email already registered');
         } else {
-          setError('Registration failed. Please try again.');
+          setError(err.response.data?.message || 'Registration failed. Please try again.');
         }
       } else {
         setError('Network error. Please check your connection.');

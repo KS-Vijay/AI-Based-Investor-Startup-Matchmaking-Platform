@@ -69,11 +69,11 @@ const AIChatModal = ({ onClose }) => {
     } catch (error) {
       console.error('Chat failed:', error);
       console.error('Error details:', error.response?.data || error.message);
-      
+      const fallback = error.response?.data?.message || "AI service unavailable. Tip: validate your idea with 5–10 customer interviews and a simple landing page before building full features.";
       const errorMessage = {
         id: Date.now() + 1,
         type: 'ai',
-        content: error.response?.data?.error || error.response?.data?.message || "Sorry, I couldn't process your message. Please try again.",
+        content: fallback,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);

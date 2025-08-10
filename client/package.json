@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server": "node server/index.js",
+    "server": "npm --prefix ../server install --silent && node ../server/index.js",
     "start": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {

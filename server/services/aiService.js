@@ -1,4 +1,3 @@
-import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -9,112 +8,53 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_API_URL = process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-console.log('AI Service - GROQ_API_KEY loaded:', GROQ_API_KEY ? 'Yes' : 'No');
+console.log('AI Service - GEMINI_API_KEY loaded:', GEMINI_API_KEY ? 'Yes' : 'No');
 
 // Validate that required environment variables are loaded
-if (!GROQ_API_KEY) {
-  console.error('GROQ_API_KEY is not set in environment variables');
+if (!GEMINI_API_KEY) {
+// No-op: we only require GEMINI_API_KEY for AI features
 }
 
 class AIService {
-  async callGroqAPI(prompt) {
+  async callGeminiAPI(prompt) {
     try {
-      console.log('Calling Groq API...');
-      console.log('GROQ_API_KEY available:', !!GROQ_API_KEY);
-      console.log('GROQ_API_URL:', GROQ_API_URL);
-      
-      if (!GROQ_API_KEY) {
-        console.error('GROQ_API_KEY is not configured');
-        return {
-          success: false,
-          error: 'GROQ_API_KEY is not configured',
-          text: null
-        };
+      if (!GEMINI_API_KEY) {
+        return { success: false, error: 'GEMINI_API_KEY is not configured', text: null };
       }
 
-      const response = await fetch(GROQ_API_URL, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
-          messages: [
+          contents: [
             {
               role: 'user',
-              content: prompt
+              parts: [{ text: prompt }]
             }
-          ],
-          temperature: 0.7,
-          max_tokens: 4000,
-          top_p: 1,
-          stream: false
-        }),
-        timeout: 30000 // 30 second timeout
+          ]
+        })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Groq API error:', response.status, errorText);
-        
-        if (response.status === 401) {
-          return {
-            success: false,
-            error: 'Invalid API key. Please check your GROQ_API_KEY configuration.',
-            text: null
-          };
-        } else if (response.status === 429) {
-          return {
-            success: false,
-            error: 'Rate limit exceeded. Please try again later.',
-            text: null
-          };
-        } else {
-          return {
-            success: false,
-            error: `Groq API error: ${response.status} - ${errorText}`,
-            text: null
-          };
-        }
+        console.error('Gemini API error:', response.status, errorText);
+        return { success: false, error: `Gemini API error: ${response.status} - ${errorText}`, text: null };
       }
 
       const data = await response.json();
-      console.log('Groq API response received successfully');
-      
-      if (data.choices && data.choices[0] && data.choices[0].message) {
-        return {
-          success: true,
-          text: data.choices[0].message.content,
-          error: null
-        };
-      } else {
-        console.error('Unexpected Groq API response format:', data);
-        return {
-          success: false,
-          error: 'Unexpected response format from Groq API',
-          text: null
-        };
+      // Extract text from Gemini response
+      const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+      if (!text) {
+        return { success: false, error: 'Unexpected response format from Gemini API', text: null };
       }
+      return { success: true, text, error: null };
     } catch (error) {
-      console.error('Error calling Groq API:', error);
-      
-      if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
-        return {
-          success: false,
-          error: 'Request timeout. Please try again.',
-          text: null
-        };
-      }
-      
-      return {
-        success: false,
-        error: `Network error: ${error.message}`,
-        text: null
-      };
+      console.error('Error calling Gemini API:', error);
+      return { success: false, error: `Network error: ${error.message}`, text: null };
     }
   }
 
@@ -262,9 +202,9 @@ class AIService {
       console.error('No file path provided for pitch deck analysis');
     }
 
-    // Check if GROQ API key is available
-    if (!GROQ_API_KEY) {
-      console.log('GROQ_API_KEY not configured, providing fallback analysis');
+    // Check if any AI provider is available
+    if (!GEMINI_API_KEY) {
+      console.log('No AI provider configured, providing fallback analysis');
       return {
         success: true,
         text: this.createFallbackPitchDeckAnalysis(pitchDeckInfo, extractedText)
@@ -272,7 +212,7 @@ class AIService {
     }
 
     const analysisPrompt = this.createPitchDeckAnalysisPrompt(pitchDeckInfo, extractedText);
-    return await this.callGroqAPI(analysisPrompt);
+    return await this.callGeminiAPI(analysisPrompt);
   }
 
   createFallbackPitchDeckAnalysis(pitchDeckInfo, extractedText) {
@@ -329,7 +269,7 @@ ${hasContent ?
   '1. Convert your pitch deck to text-searchable format\n2. Share key content for detailed analysis\n3. Ensure all slides have clear, readable text\n4. Consider using standard fonts and formats'
 }
 
-**Note:** This is a fallback analysis since AI service is not fully configured. For detailed AI-powered analysis, please ensure the GROQ API key is properly set up.
+**Note:** This is a fallback analysis since AI service is not fully configured. For detailed AI-powered analysis, please ensure the GEMINI_API_KEY is properly set up.
 `;
   }
 
@@ -457,18 +397,18 @@ Please provide helpful startup and investment advice. Keep your response convers
 `;
     }
 
-    return await this.callGroqAPI(prompt);
+    return await this.callGeminiAPI(prompt);
   }
 
   // AI Matchmaking Methods
   async findMatchesForStartup(startupProfile, allInvestors) {
     const prompt = this.createStartupMatchingPrompt(startupProfile, allInvestors);
-    return await this.callGroqAPI(prompt);
+    return await this.callGeminiAPI(prompt);
   }
 
   async findMatchesForInvestor(investorProfile, allStartups) {
     const prompt = this.createInvestorMatchingPrompt(investorProfile, allStartups);
-    return await this.callGroqAPI(prompt);
+    return await this.callGeminiAPI(prompt);
   }
 
   // New method for real-time investor matching
@@ -477,8 +417,8 @@ Please provide helpful startup and investment advice. Keep your response convers
       console.log('Starting AI matching for startup:', startupProfile.startupName);
       console.log('Number of investors to analyze:', allInvestors.length);
       
-      if (!GROQ_API_KEY) {
-        console.error('GROQ_API_KEY is not configured');
+      if (!GEMINI_API_KEY) {
+        console.error('GEMINI_API_KEY is not configured');
         // Provide intelligent fallback based on actual data analysis
         const intelligentMatches = this.createIntelligentFallbackMatches(startupProfile, allInvestors);
         return {

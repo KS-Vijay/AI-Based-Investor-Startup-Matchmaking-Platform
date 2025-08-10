@@ -48,7 +48,7 @@ const Navbar = ({ userType = 'startup' }) => {
   return (
     <header className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
       <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(getDashboardPath())}>
-        <span className="text-2xl font-bold text-white">Chatiao</span>
+        <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent drop-shadow">Chatiao</span>
       </div>
       <nav className="flex items-center gap-6 text-sm font-medium relative">
         <button onClick={() => navigate(getDashboardPath())} className={getButtonClass(getDashboardPath())}>Home</button>
@@ -59,7 +59,7 @@ const Navbar = ({ userType = 'startup' }) => {
         {/* Robot Icon Dropdown */}
         <div className="relative ml-4">
           <button
-            className="p-2 rounded-full hover:bg-indigo-800 transition flex items-center"
+            className="p-2 rounded-full hover:bg-indigo-800 transition flex items-center border border-white/10"
             title="User Menu"
             onClick={handleDropdownToggle}
           >

@@ -13,7 +13,8 @@ The AI-Based Investor-Startup Matchmaking Platform leverages artificial intellig
 
 ## Tech Stack
 - **Frontend:** React 19, Vite, Tailwind CSS, React Router DOM
-- **Backend:** Node.js, Express, and Socket.io (for real-time chat)
+- **Backend:** Node.js, Express
+- **AI Provider:** Gemini (Google Generative Language API)
 
 ---
 
@@ -56,15 +57,25 @@ $ git clone <repository-url>
 $ cd AI-Based-Investor-Startup-Matchmaking-Platform/client
      ```
 
-### Running the Application
-- To start the backend server:
-  ```bash
-  npm run dev
-  ```
-- To start the frontend (if applicable):
-  ```bash
-  npm run dev
-  ```
+### Environment
+Create `.env` at project root:
+```
+PORT=5000
+MONGODB_URI=your_mongodb_uri
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-1.5-flash
+# optional market data (fallbacks used if missing)
+# ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
+```
+
+### Run
+From the `client/` folder:
+```
+npm install
+npm run start
+```
+This installs/starts backend and frontend concurrently.
 
 ## Contributing
 Contributions are welcome! Please fork the repository and submit a pull request. For major changes, open an issue first to discuss what you would like to change.

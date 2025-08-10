@@ -28,7 +28,7 @@ const ChatPage = () => {
       {/* Foreground Chat UI */}
       <div className="relative w-full h-full flex items-center justify-center px-4 py-6 sm:px-[10%] sm:py-[5%] pt-4">
         <div
-          className={`w-full h-full backdrop-blur-2xl border-2 border-gray-600 rounded-2xl overflow-hidden grid grid-cols-1 ${
+          className={`w-full h-full backdrop-blur-2xl border-2 border-gray-600 rounded-2xl overflow-hidden shadow-2xl shadow-purple-900/30 grid grid-cols-1 ${
             selectedUser
               ? 'md:grid-cols-[1fr_1.5fr_1fr] xl:grid-cols-[1fr_2fr_1fr]'
               : 'md:grid-cols-2'

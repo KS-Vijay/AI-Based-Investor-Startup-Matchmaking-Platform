@@ -52,7 +52,7 @@ const AIInvestorChatModal = ({ onClose }) => {
     try {
       const response = await axios.post('http://localhost:5000/api/ai/chat', {
         message: currentMessage,
-        context: 'investor_investment_business'
+        context: 'investor_dashboard'
       });
 
       const aiMessage = {
@@ -65,10 +65,11 @@ const AIInvestorChatModal = ({ onClose }) => {
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Chat failed:', error);
+      const fallback = error.response?.data?.message || "AI service unavailable. Here's a quick tip: diversify your portfolio by sector and stage to reduce risk and improve returns.";
       const errorMessage = {
         id: Date.now() + 1,
         type: 'ai',
-        content: "Sorry, I couldn't process your message. Please try again.",
+        content: fallback,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);
