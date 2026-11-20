@@ -1,42 +1,32 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "server": "npm --prefix ../server install --silent && node ../server/index.js",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "preview": "vite preview"
   },
   "dependencies": {
     "@google/genai": "^1.11.0",
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.10.0",
-    "bcrypt": "^6.0.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
     "framer-motion": "^12.23.6",
-    "mongoose": "^8.16.4",
-    "multer": "^2.0.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.6.3",
     "react-toastify": "^11.0.5",
-    "tailwindcss": "^4.1.11",
-    "pdfreader": "^3.0.7",
-    "pptx2json": "^0.0.10"
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
-    "concurrently": "^9.2.0",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",

@@ -1,21 +1,25 @@
 {
   "name": "server",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node index.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "seed": "node scripts/seed.js",
+    "test:e2e": "node scripts/test-e2e.js"
   },
   "dependencies": {
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
-    "client": "file:../client",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
     "multer": "^2.0.2",
     "pdfreader": "^3.0.7",
-    "pptx2json": "^0.0.10"
+    "pptx2json": "^0.0.10",
+    "socket.io": "^4.8.1"
   }
 }

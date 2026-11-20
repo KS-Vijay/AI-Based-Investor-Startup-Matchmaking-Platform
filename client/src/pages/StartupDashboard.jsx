@@ -523,7 +523,7 @@ const StartupDashboard = () => {
               
             <button
               className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
-              onClick={() => navigate('/investor-search')}
+              onClick={() => navigate('/matches')}
             >
               View All Matches
             </button>

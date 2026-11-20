@@ -1,5 +1,11 @@
 import User from '../models/User.js';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
+
+const generateToken = (id) => {
+  const secret = process.env.JWT_SECRET || 'super_secret_jwt_key_investor_matchmaking_2026';
+  return jwt.sign({ id }, secret, { expiresIn: '30d' });
+};
 
 export const registerUser = async (req, res) => {
   try {
@@ -8,29 +14,33 @@ export const registerUser = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
     // Create new user (password will be hashed by the model middleware)
     const newUser = new User({
       fullName,
       email,
-      password, // Will be automatically hashed by the pre-save middleware
-      role,
+      password,
+      role: role || 'startup',
       hasFilledForm: false
     });
 
     await newUser.save();
+    const token = generateToken(newUser._id);
 
     res.status(201).json({
+      success: true,
+      token,
       _id: newUser._id,
       fullName: newUser.fullName,
       email: newUser.email,
       role: newUser.role,
-      hasFilledForm: newUser.hasFilledForm
+      hasFilledForm: newUser.hasFilledForm,
+      profilePic: newUser.profilePic
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -38,29 +48,41 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Find user by email only
     const user = await User.findOne({ email });
-    
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    // Compare password securely
     const isPasswordValid = await user.comparePassword(password);
-    
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
+
+    const token = generateToken(user._id);
 
     res.json({
+      success: true,
+      token,
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      hasFilledForm: user.hasFilledForm
+      hasFilledForm: user.hasFilledForm,
+      profilePic: user.profilePic
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      user: req.user
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -68,53 +90,44 @@ export const googleAuth = async (req, res) => {
   try {
     const { token } = req.body;
     
-    // Verify the Google token and get user info
     const googleResponse = await axios.get(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${token}`
     );
 
     const { email, name, picture } = googleResponse.data;
 
-    // Check if user exists
     let user = await User.findOne({ email });
-
     if (!user) {
-      // Create new user with Google info
       user = new User({
         fullName: name,
         email,
-        password: 'google-auth-' + Math.random().toString(36).slice(-8), // Random string as password
-        role: 'investor', // Default role
+        password: 'google-auth-' + Math.random().toString(36).slice(-8),
+        role: 'investor',
         hasFilledForm: false,
-        avatar: picture, // Store Google profile picture
-        isGoogleAuth: true // Flag to identify Google-authenticated users
+        profilePic: picture
       });
       await user.save();
     }
 
-    // Return user data (excluding sensitive fields)
-    const userData = {
+    const jwtToken = generateToken(user._id);
+
+    res.json({
+      success: true,
+      token: jwtToken,
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       role: user.role,
       hasFilledForm: user.hasFilledForm,
-      avatar: user.avatar
-    };
-
-    res.json(userData);
+      profilePic: user.profilePic
+    });
   } catch (error) {
     console.error('Google authentication error:', error);
-    
-    // Handle different error scenarios
-    if (error.response) {
-      if (error.response.status === 400) {
-        return res.status(400).json({ message: 'Invalid Google token' });
-      }
-      return res.status(502).json({ message: 'Error communicating with Google' });
+    if (error.response && error.response.status === 400) {
+      return res.status(400).json({ success: false, message: 'Invalid Google token' });
     }
-    
     res.status(500).json({ 
+      success: false,
       message: 'Google authentication failed',
       error: error.message 
     });
@@ -125,7 +138,7 @@ export const updateUserRole = async (req, res) => {
   try {
     const { email, role } = req.body;
     if (!email || !role) {
-      return res.status(400).json({ message: 'Email and role are required.' });
+      return res.status(400).json({ success: false, message: 'Email and role are required.' });
     }
     const user = await User.findOneAndUpdate(
       { email },
@@ -133,17 +146,18 @@ export const updateUserRole = async (req, res) => {
       { new: true }
     );
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ success: false, message: 'User not found.' });
     }
     res.json({
+      success: true,
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       role: user.role,
       hasFilledForm: user.hasFilledForm,
-      avatar: user.avatar
+      profilePic: user.profilePic
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

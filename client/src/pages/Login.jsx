@@ -81,6 +81,9 @@ const LoginPage = () => {
 
       const user = response.data;
       localStorage.setItem('currentUser', JSON.stringify(user));
+      if (user.token) {
+        localStorage.setItem('token', user.token);
+      }
       
       if (!user.hasFilledForm) {
         navigate(user.role === 'startup' ? '/startup-form' : '/investor-form');

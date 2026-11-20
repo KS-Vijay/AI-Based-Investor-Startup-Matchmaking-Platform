@@ -1,36 +1,71 @@
-import assets, { imagesDummyData } from '../../assets/assets'
+import React from 'react';
+import { FaUserCircle, FaBuilding, FaEnvelope, FaExternalLinkAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const RightSidebar = ({ selectedUser }) => {
-  return selectedUser && (
-    <div className={`bg-[#818582]/10 text-white w-full relative overflow-y-scroll ${selectedUser ? 'max-md:hidden' : ''}`}>
-      <div className='pt-16 flex flex-col items-center gap-2 text-xs font-light mx-auto'>
-        <img src={selectedUser?.profilePic || assets.avatar_icon
-        } alt="" className='w-20 aspect-[1/1] rounded-full' />
-        <h1 className='px-10 text-x1 font-medium mx-auto flex items-center gap-2'>
-          <p className='w-2 h-2 rounded-full bg-green-500'></p>
-          {selectedUser.fullName}
-        </h1>
-        <p className='px-10 mx-auto'>{selectedUser.bio}</p>
+  const navigate = useNavigate();
+
+  if (!selectedUser) return null;
+
+  return (
+    <div className="bg-slate-900/80 border-l border-white/10 h-full p-6 flex flex-col text-white max-lg:hidden overflow-y-auto">
+      {/* Profile Header */}
+      <div className="flex flex-col items-center text-center mt-4">
+        {selectedUser.profilePic ? (
+          <img
+            src={selectedUser.profilePic}
+            alt={selectedUser.fullName}
+            className="w-20 h-20 rounded-full object-cover border-2 border-purple-500/40 shadow-xl"
+          />
+        ) : (
+          <FaUserCircle className="w-20 h-20 text-slate-400" />
+        )}
+        <h3 className="text-base font-bold mt-3 text-white">{selectedUser.fullName}</h3>
+        <span className="mt-1 px-3 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
+          {selectedUser.role}
+        </span>
       </div>
 
-      <hr className='border-[#ffffff50] my-4' />
+      <div className="my-6 border-t border-white/10" />
 
-      <div className='px-5 text-xs'>
-        <p>Media</p>
-        <div className='mt-2 max-h-[200px] overflow-y-scroll grid grid-cols-2 gap-4 opacity-80'>
-          {imagesDummyData.map((url, index) => (
-            <div key={index} onClick={() => window.open(url)} className='cursor-pointer rounded'>
-              <img src={url} alt="" className='h-full rounded-md' />
-            </div>
-          ))}
+      {/* Details List */}
+      <div className="space-y-4 text-xs">
+        <div>
+          <span className="text-slate-400 font-semibold block mb-1">Email</span>
+          <div className="flex items-center gap-2 text-slate-200 break-all">
+            <FaEnvelope className="text-purple-400 shrink-0" />
+            <span>{selectedUser.email || 'Not provided'}</span>
+          </div>
+        </div>
+
+        <div>
+          <span className="text-slate-400 font-semibold block mb-1">Account Role</span>
+          <div className="flex items-center gap-2 text-slate-200 capitalize">
+            <FaBuilding className="text-purple-400 shrink-0" />
+            <span>{selectedUser.role === 'startup' ? 'Startup Founder' : 'Venture / Angel Investor'}</span>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <span className="text-slate-400 font-semibold block mb-1">Status</span>
+          <p className="text-slate-300 leading-relaxed">
+            Verified participant in the AI-Based Matchmaking Platform.
+          </p>
         </div>
       </div>
 
-      <button className='absolute bottom-5 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-400 to-violet-600 text-white border-none text-sm font-light py-2 px-20 rounded-full cursor-pointer'>
-        Exit
-      </button>
+      {/* Quick Action */}
+      <div className="mt-auto pt-6">
+        <button
+          onClick={() => navigate('/matches')}
+          className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition flex items-center justify-center gap-2"
+        >
+          <span>Explore Matches</span>
+          <FaExternalLinkAlt className="text-[10px]" />
+        </button>
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default RightSidebar
+export default RightSidebar;

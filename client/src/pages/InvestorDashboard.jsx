@@ -515,12 +515,18 @@ const InvestorDashboard = () => {
                  </div>
                </div>
              )}
-             <div className="mt-4">
+             <div className="mt-4 flex gap-3">
+               <button
+                 onClick={() => navigate('/matches')}
+                 className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-xl font-semibold transition"
+               >
+                 View All AI Matches
+               </button>
                <button
                  onClick={() => navigate('/startupssearch')}
-                 className="bg-gradient-to-r from-purple-500 to-violet-600 px-6 py-2 rounded-md font-medium hover:scale-105 transition"
+                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-xl font-medium transition"
                >
-                 Explore More Startups
+                 Search Directory
                </button>
              </div>
            </section>

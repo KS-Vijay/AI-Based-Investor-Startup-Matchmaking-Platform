@@ -1,7 +1,10 @@
 import express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // Load environment variables from the correct location
@@ -11,132 +14,154 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
-import formRoutes from './routes/formRoutes.js';  // ✅ New import
-import aiRoutes from './routes/aiRoutes.js';  // ✅ Add AI routes import
-import aiService from './services/aiService.js';
-import StartupForm from './models/StartupForm.js';
+import formRoutes from './routes/formRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import messageRoutes from './routes/messageRoutes.js';
+import Message from './models/Message.js';
+import Conversation from './models/Conversation.js';
 
 const app = express();
+const server = http.createServer(app);
+
+// Setup Socket.IO
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Store online users: userId -> socketId
+const onlineUsers = new Map();
+
+io.on('connection', (socket) => {
+  console.log('⚡ Client connected to Socket.IO:', socket.id);
+
+  socket.on('user_online', (userId) => {
+    if (userId) {
+      onlineUsers.set(userId.toString(), socket.id);
+      io.emit('online_users', Array.from(onlineUsers.keys()));
+      console.log(`User ${userId} is online. Total online: ${onlineUsers.size}`);
+    }
+  });
+
+  socket.on('join_conversation', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`Socket ${socket.id} joined conversation room: ${conversationId}`);
+  });
+
+  socket.on('typing', ({ conversationId, userId, isTyping }) => {
+    socket.to(conversationId).emit('user_typing', { conversationId, userId, isTyping });
+  });
+
+  socket.on('send_message', async (data) => {
+    try {
+      const { conversationId, senderId, receiverId, text, image } = data;
+
+      let convId = conversationId;
+      if (!convId && receiverId && senderId) {
+        let conv = await Conversation.findOne({
+          participants: { $all: [senderId, receiverId] },
+        });
+        if (!conv) {
+          conv = new Conversation({
+            participants: [senderId, receiverId],
+          });
+          await conv.save();
+        }
+        convId = conv._id;
+      }
+
+      const newMessage = new Message({
+        conversationId: convId,
+        sender: senderId,
+        receiver: receiverId,
+        text: text || '',
+        image: image || '',
+      });
+      await newMessage.save();
+
+      await Conversation.findByIdAndUpdate(convId, {
+        lastMessage: newMessage._id,
+        lastMessageText: text || (image ? '📷 Image' : ''),
+        lastMessageTime: new Date(),
+      });
+
+      await newMessage.populate('sender', 'fullName profilePic role');
+      await newMessage.populate('receiver', 'fullName profilePic role');
+
+      // Emit to room
+      io.to(convId.toString()).emit('receive_message', newMessage);
+
+      // Also notify receiver specifically if online
+      const receiverSocketId = onlineUsers.get(receiverId?.toString());
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('new_message_notification', {
+          conversationId: convId,
+          message: newMessage,
+        });
+      }
+    } catch (err) {
+      console.error('Error handling socket send_message:', err);
+      socket.emit('error_message', { error: err.message });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    for (const [userId, sockId] of onlineUsers.entries()) {
+      if (sockId === socket.id) {
+        onlineUsers.delete(userId);
+        console.log(`User ${userId} disconnected.`);
+        break;
+      }
+    }
+    io.emit('online_users', Array.from(onlineUsers.keys()));
+  });
+});
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve uploaded files statically
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(uploadsDir));
 
 // Database connection
 connectDB();
 
-// Test endpoint - place this before other routes
+// Health check endpoints
 app.get('/api/test', (req, res) => {
-  res.json({ message: 'Server is running!' });
+  res.json({ success: true, message: 'Server is running!' });
 });
 
-// Test AI routes endpoint
 app.get('/api/ai/test', (req, res) => {
-  res.json({ message: 'AI routes are working!' });
+  res.json({ success: true, message: 'AI routes are operational!' });
 });
 
-// Analyze endpoint
-app.post('/api/ai/analyze/:startupId', async (req, res) => {
-  try {
-    const { startupId } = req.params;
-    console.log('Analyze pitch deck called with startupId:', startupId);
-    console.log('Request params:', req.params);
-    console.log('Request body:', req.body);
-    
-    // Get startup data by _id (not userId)
-    const startup = await StartupForm.findById(startupId);
-    console.log('Found startup:', startup ? 'Yes' : 'No');
-    console.log('Startup data:', startup ? {
-      _id: startup._id,
-      startupName: startup.startupName,
-      userId: startup.userId,
-      hasPitchDeck: !!startup.pitchDeck,
-      pitchDeckPath: startup.pitchDeck?.path
-    } : 'No startup found');
-    
-    // Let's also check if there are any startups in the database
-    const allStartups = await StartupForm.find({});
-    console.log('All startups in database:', allStartups.map(s => ({
-      _id: s._id,
-      startupName: s.startupName,
-      userId: s.userId
-    })));
-    
-    if (!startup) {
-      console.log('Startup not found for _id:', startupId);
-      return res.status(404).json({
-        success: false,
-        error: 'Startup not found'
-      });
-    }
+// Mount Routes
+app.use('/api', authRoutes);
+app.use('/api/forms', formRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/messages', messageRoutes);
 
-    // Check if pitch deck exists
-    if (!startup.pitchDeck || !startup.pitchDeck.path) {
-      console.log('No pitch deck found for startup');
-      return res.status(400).json({
-        success: false,
-        error: 'No pitch deck uploaded for this startup'
-      });
-    }
+const PORT = process.env.PORT || 5000;
 
-    console.log('Pitch deck found:', startup.pitchDeck);
-
-    // Prepare pitch deck info for analysis
-    const pitchDeckInfo = {
-      startupName: startup.startupName,
-      path: startup.pitchDeck.path,
-      originalName: startup.pitchDeck.originalName || startup.pitchDeck.path.split('/').pop() || 'pitch-deck.pdf'
-    };
-
-    console.log('Pitch deck info for analysis:', pitchDeckInfo);
-
-    // Analyze the pitch deck
-    const result = await aiService.analyzePitchDeck(pitchDeckInfo);
-    
-    if (result.success) {
-      console.log('AI analysis successful');
-      res.json({
-        success: true,
-        analysis: result.text
-      });
-    } else {
-      console.log('AI analysis failed:', result.error);
-      throw new Error(result.error);
-    }
-  } catch (error) {
-    console.error('Error analyzing pitch deck:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to analyze pitch deck',
-      message: error.message
-    });
-  }
-});
-
-// Routes
-app.use('/api', authRoutes);         // For /api/register and /api/login
-app.use('/api/forms', formRoutes);   // ✅ For /api/forms/startup-form and investor-form
-app.use('/api/ai', aiRoutes);        // ✅ For AI functionality including chat
-
-// Debug: List all AI routes
-console.log('AI Routes loaded:');
-aiRoutes.stack.forEach((r) => {
-  if (r.route && r.route.path) {
-    console.log(`  ${Object.keys(r.route.methods)} ${r.route.path}`);
-  }
-});
-
-const PORT = 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Available routes:');
-  console.log('- GET /api/test');
-  console.log('- GET /api/ai/test');
-  console.log('- POST /api/ai/analyze/:startupId');
-  console.log('- POST /api/ai/chat');
-console.log('GEMINI_API_KEY loaded:', process.env.GEMINI_API_KEY ? 'Yes' : 'No');
+server.listen(PORT, () => {
+  console.log(`🚀 Server running with Socket.io on port ${PORT}`);
+  console.log('Registered API Endpoints:');
+  console.log(' - /api/register, /api/login, /api/me');
+  console.log(' - /api/forms/startup-form, /api/forms/investor-form');
+  console.log(' - /api/ai/matches/:userId (AI Matchmaking)');
+  console.log(' - /api/ai/analyze/:startupId (Pitch Deck Analysis)');
+  console.log(' - /api/ai/chat (Context-aware AI Advisor)');
+  console.log(' - /api/messages (Real-Time Conversations & Chat)');
+  console.log('GEMINI_API_KEY loaded:', process.env.GEMINI_API_KEY ? 'Yes' : 'No');
 });

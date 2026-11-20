@@ -1,20 +1,24 @@
 import express from 'express';
 import axios from 'axios';
-import { getInvestorInsights, getMarketTrends, getPortfolioAnalytics, chatWithAI, analyzePitchDeck } from '../controllers/aiController.js';
+import {
+  getInvestorInsights,
+  getMarketTrends,
+  getPortfolioAnalytics,
+  chatWithAI,
+  analyzePitchDeck,
+  getMatches,
+} from '../controllers/aiController.js';
 
 const router = express.Router();
 
-// Test route to verify AI routes are loaded
+// Test routes
 router.get('/test', (req, res) => {
   res.json({ message: 'AI routes are working!' });
 });
 
-// Test matches endpoint
 router.get('/matches-test', (req, res) => {
   res.json({ message: 'Matches endpoint is accessible!' });
 });
-
-
 
 // AI-powered investor insights
 router.post('/investor-insights', getInvestorInsights);
@@ -62,27 +66,8 @@ router.post('/chat', chatWithAI);
 // Pitch deck analysis
 router.post('/analyze/:startupId', analyzePitchDeck);
 
-// AI matching for investors - SIMPLIFIED VERSION
-router.post('/matches/:userId', (req, res) => {
-  try {
-    const { userId } = req.params;
-    console.log('AI matching requested for userId:', userId);
-    
-    // Return a simple response for now
-    res.json({
-      success: true,
-      matches: [],
-      totalProfilesAnalyzed: 0,
-      message: 'AI matching endpoint is working!'
-    });
-  } catch (error) {
-    console.error('AI matching error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'AI matching failed. Please try again.',
-      error: error.message
-    });
-  }
-});
+// Real AI Matchmaking for Startups & Investors
+router.post('/matches/:userId', getMatches);
+router.get('/matches/:userId', getMatches);
 
 export default router;

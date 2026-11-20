@@ -34,8 +34,10 @@ const Register = () => {
     try {
       const response = await axios.post('http://localhost:5000/api/register', formData);
       const userData = response.data;
-      
       localStorage.setItem('currentUser', JSON.stringify(userData));
+      if (userData.token) {
+        localStorage.setItem('token', userData.token);
+      }
       navigate(formData.role === 'startup' ? '/startup-form' : '/investor-form');
     } catch (err) {
       if (err.response) {

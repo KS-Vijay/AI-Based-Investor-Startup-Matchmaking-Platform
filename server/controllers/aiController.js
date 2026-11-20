@@ -2,6 +2,8 @@ import aiService from '../services/aiService.js';
 import marketDataService from '../services/marketDataService.js';
 import InvestorForm from '../models/InvestorForm.js';
 import StartupForm from '../models/StartupForm.js';
+import User from '../models/User.js';
+import Match from '../models/Match.js';
 
 // Analyze pitch deck for a startup
 export const analyzePitchDeck = async (req, res) => {
@@ -408,6 +410,243 @@ Keep your response conversational, actionable, and relevant to investment decisi
       success: false,
       error: 'Failed to get AI response',
       message: error.message
+    });
+  }
+};
+
+// AI Matching for Startups and Investors
+export const getMatches = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.role === 'startup') {
+      const startup = await StartupForm.findOne({ userId });
+      if (!startup) {
+        return res.status(404).json({
+          success: false,
+          message: 'Startup profile not found. Please complete your startup form first.',
+          matches: [],
+        });
+      }
+
+      const allInvestors = await InvestorForm.find({}).populate('userId', 'fullName email profilePic');
+      if (!allInvestors.length) {
+        return res.json({
+          success: true,
+          matches: [],
+          totalProfilesAnalyzed: 0,
+          message: 'No investor profiles currently available for matching.',
+        });
+      }
+
+      // Calculate matches for startup
+      const matches = [];
+      for (const investor of allInvestors) {
+        let score = 65; // base score
+        const whyWorks = [];
+        const potentialConcerns = [];
+
+        // Industry check
+        const startupIndustries = Array.isArray(startup.industry)
+          ? startup.industry
+          : [startup.industry].filter(Boolean);
+        const investorIndustries = Array.isArray(investor.preferredIndustries)
+          ? investor.preferredIndustries
+          : [investor.preferredIndustries].filter(Boolean);
+
+        const industryMatch = startupIndustries.some(ind =>
+          investorIndustries.some(iInd => iInd && ind && (iInd.toLowerCase().includes(ind.toLowerCase()) || ind.toLowerCase().includes(iInd.toLowerCase())))
+        );
+
+        if (industryMatch) {
+          score += 15;
+          whyWorks.push(`Direct sector alignment in ${startupIndustries.slice(0, 2).join(', ')}`);
+        } else {
+          potentialConcerns.push('Industry is outside primary investment mandates');
+        }
+
+        // Stage check
+        const investorStages = Array.isArray(investor.preferredStages)
+          ? investor.preferredStages
+          : [investor.preferredStages].filter(Boolean);
+        const stageMatch = startup.startupStage && investorStages.some(stg =>
+          stg && (stg.toLowerCase().includes(startup.startupStage.toLowerCase()) || startup.startupStage.toLowerCase().includes(stg.toLowerCase()))
+        );
+
+        if (stageMatch) {
+          score += 10;
+          whyWorks.push(`Stage fit: Target funding round matches investor's stage focus (${startup.startupStage})`);
+        } else {
+          score -= 5;
+          potentialConcerns.push(`Stage discrepancy: Startup is at ${startup.startupStage || 'unspecified stage'}`);
+        }
+
+        // Ticket size check
+        if (investor.ticketSize) {
+          score += 5;
+          whyWorks.push(`Ticket size compatible with target round (${investor.ticketSize})`);
+        }
+
+        // Geography check
+        if (investor.preferredGeographies && startup.headquarters) {
+          score += 5;
+          whyWorks.push(`Geographic alignment: Active in ${startup.headquarters}`);
+        }
+
+        score = Math.min(Math.max(score, 45), 98);
+
+        let recommendationLevel = 'Recommended';
+        if (score >= 85) recommendationLevel = 'Highly Recommended';
+        else if (score < 60) recommendationLevel = 'Consider';
+
+        if (whyWorks.length === 0) {
+          whyWorks.push('Potential co-investment or syndicate interest');
+        }
+
+        matches.push({
+          name: investor.fullName || investor.organization || 'Angel Investor',
+          score,
+          organization: investor.organization || 'Venture Capital',
+          type: investor.investorType || 'Investor',
+          recommendation: recommendationLevel,
+          whyWorks,
+          potentialConcerns: potentialConcerns.length ? potentialConcerns : ['Standard market and execution risk'],
+          strategicFit: `Investor brings expertise in ${investorIndustries.slice(0, 3).join(', ') || 'portfolio acceleration'}`,
+          nextSteps: 'Send warm intro with pitch deck and key traction metrics',
+          investor: {
+            _id: investor._id,
+            fullName: investor.fullName,
+            organization: investor.organization,
+            investorType: investor.investorType,
+            preferredIndustries: investor.preferredIndustries,
+            preferredStages: investor.preferredStages,
+            ticketSize: investor.ticketSize,
+            preferredGeographies: investor.preferredGeographies,
+            userId: investor.userId
+          }
+        });
+      }
+
+      matches.sort((a, b) => b.score - a.score);
+
+      return res.json({
+        success: true,
+        matches,
+        totalProfilesAnalyzed: allInvestors.length,
+        message: `Successfully analyzed ${allInvestors.length} investor profiles.`
+      });
+    } else {
+      // User is investor matching against startups
+      const investor = await InvestorForm.findOne({ userId });
+      if (!investor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Investor profile not found. Please complete your investor form first.',
+          matches: [],
+        });
+      }
+
+      const allStartups = await StartupForm.find({}).populate('userId', 'fullName email profilePic');
+      if (!allStartups.length) {
+        return res.json({
+          success: true,
+          matches: [],
+          totalProfilesAnalyzed: 0,
+          message: 'No startup profiles currently available for matching.',
+        });
+      }
+
+      const matches = [];
+      for (const startup of allStartups) {
+        let score = 65;
+        const whyWorks = [];
+        const potentialConcerns = [];
+
+        const startupIndustries = Array.isArray(startup.industry)
+          ? startup.industry
+          : [startup.industry].filter(Boolean);
+        const investorIndustries = Array.isArray(investor.preferredIndustries)
+          ? investor.preferredIndustries
+          : [investor.preferredIndustries].filter(Boolean);
+
+        const industryMatch = startupIndustries.some(ind =>
+          investorIndustries.some(iInd => iInd && ind && (iInd.toLowerCase().includes(ind.toLowerCase()) || ind.toLowerCase().includes(iInd.toLowerCase())))
+        );
+
+        if (industryMatch) {
+          score += 15;
+          whyWorks.push(`Target industry match in ${startupIndustries.join(', ')}`);
+        }
+
+        const investorStages = Array.isArray(investor.preferredStages)
+          ? investor.preferredStages
+          : [investor.preferredStages].filter(Boolean);
+        const stageMatch = startup.startupStage && investorStages.some(stg =>
+          stg && (stg.toLowerCase().includes(startup.startupStage.toLowerCase()) || startup.startupStage.toLowerCase().includes(stg.toLowerCase()))
+        );
+
+        if (stageMatch) {
+          score += 10;
+          whyWorks.push(`Funding stage matches your thesis (${startup.startupStage})`);
+        }
+
+        if (startup.growthRate) {
+          score += 5;
+          whyWorks.push(`Reported growth traction: ${startup.growthRate}`);
+        }
+
+        score = Math.min(Math.max(score, 45), 98);
+
+        let recommendationLevel = 'Recommended';
+        if (score >= 85) recommendationLevel = 'Highly Recommended';
+        else if (score < 60) recommendationLevel = 'Consider';
+
+        matches.push({
+          name: startup.startupName || 'Startup Opportunity',
+          score,
+          organization: startup.startupName,
+          type: startupIndustries[0] || 'Technology',
+          recommendation: recommendationLevel,
+          whyWorks,
+          potentialConcerns: potentialConcerns.length ? potentialConcerns : ['Verify customer retention & churn metrics'],
+          strategicFit: startup.problemStatement || 'High potential value creation',
+          nextSteps: 'Request full pitch deck and schedule introductory founder screen',
+          startup: {
+            _id: startup._id,
+            startupName: startup.startupName,
+            industry: startup.industry,
+            startupStage: startup.startupStage,
+            fundingAmount: startup.fundingAmount,
+            fundingRoundType: startup.fundingRoundType,
+            headquarters: startup.headquarters,
+            problemStatement: startup.problemStatement,
+            productDescription: startup.productDescription,
+            monthlyRevenue: startup.monthlyRevenue,
+            growthRate: startup.growthRate,
+            userId: startup.userId
+          }
+        });
+      }
+
+      matches.sort((a, b) => b.score - a.score);
+
+      return res.json({
+        success: true,
+        matches,
+        totalProfilesAnalyzed: allStartups.length,
+        message: `Successfully analyzed ${allStartups.length} startup opportunities.`
+      });
+    }
+  } catch (error) {
+    console.error('Error generating AI matches:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate AI matches',
+      error: error.message,
     });
   }
 };
